@@ -20,30 +20,21 @@ import java.util.*;
 import entidades.*;
 import java.text.DecimalFormat;
 
-// <-- DESDE AQUI SON PARA CARGA ORDENES EXCEL -->
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.Part; // IMPORTANTE
-import modelo.SAP.DaoSAP;
-import com.google.gson.Gson;
-import entidades.*;
-import java.text.DecimalFormat;
-import org.apache.poi.ss.usermodel.*; // Librerías de Excel
-
+import javax.servlet.http.Part;
+import javax.servlet.annotation.MultipartConfig;
+import org.apache.poi.ss.usermodel.*;
 
 /**
  *
  * @author Mario Valdez
  */
 
-
-
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 2,
+    maxFileSize = 1024 * 1024 * 10,
+    maxRequestSize = 1024 * 1024 * 50
+)
 public class CtrlOrden extends HttpServlet {
 
     OWOR or;
@@ -400,62 +391,64 @@ public class CtrlOrden extends HttpServlet {
                     }
                 }
             
-                //METODO CARGAR ARCHIVO DE EXCEL CON ORDENES
-                // <-- @WebServlet(name = "CtrlOrden", urlPatterns = {"/CtrlOrden"}) -->
-                // <-- @MultipartConfig(fileSizeThreshold = 1024 * 1024 * 2, // 2MB 
-                // maxFileSize = 1024 * 1024 * 10,      // 10MB
-                // maxRequestSize = 1024 * 1024 * 50)   // 50MB
-           // <--  public class CtrlOrden extends HttpServlet { -->
+                if (request.getParameter("cargarExcelBoton")!=null) {
+                    try {
+                        HttpSession sesion = request.getSession();
+                        int idUsr = (Integer)sesion.getAttribute("idUsuario");
+                        Part filePart = request.getPart("fileExcel");
+                        if (filePart != null && filePart.getSize() > 0) {
+                            InputStream fileContent = filePart.getInputStream();
+                            Workbook workbook = WorkbookFactory.create(fileContent);
+                            Sheet sheet = workbook.getSheetAt(0);
+                            int insertados = 0;
+                            int errores = 0;
+                            StringBuilder detalle = new StringBuilder();
 
-                // ... (Mantener tus variables declaradas: or, oige, us, r, etc.)
+                            for (Row row : sheet) {
+                                if (row.getRowNum() == 0) continue;
+                                try {
+                                    int docNum = (int) row.getCell(5).getNumericCellValue();
+                                    int codeEmp = (int) row.getCell(3).getNumericCellValue();
+                                    String nomEmp = row.getCell(4).getStringCellValue();
+                                    String actividad = row.getCell(7).getStringCellValue();
+                                    String descActividad = row.getCell(6).getStringCellValue();
 
-               // @Override
-              //  protected void doPost(HttpServletRequest request, HttpServletResponse response)
-                  //      throws ServletException, IOException {
+                                    OWOR owor = new OWOR();
+                                    owor.setDocnum(docNum);
 
-                    response.setContentType("text/html;charset=UTF-8");
-               
-                    // 1. Lógica para procesar el Excel
-                    String cargarExcel = request.getParameter("cargarExcelBoton");
-                    if (cargarExcel != null) {
-                        try {
-                            Part filePart = request.getPart("fileExcel"); 
-                            if (filePart != null && filePart.getSize() > 0) {
-                                InputStream fileContent = filePart.getInputStream();
-                                Workbook workbook = WorkbookFactory.create(fileContent);
-                                Sheet sheet = workbook.getSheetAt(0);
+                                    Usuario usuario = new Usuario();
+                                    usuario.setIdUsuario(idUsr);
 
-                                // Aquí recorres tu Excel
-                                for (Row row : sheet) {
-                                    if (row.getRowNum() == 0) continue; // Saltar encabezado
-                                    // Ejemplo: String item = row.getCell(0).getStringCellValue();
+                                    APS_OIGE registro = new APS_OIGE();
+                                    registro.setAPS_OWOR(owor);
+                                    registro.setCodeEmp(codeEmp);
+                                    registro.setNomEmp(nomEmp);
+                                    registro.setActividad(actividad);
+                                    registro.setDescActividad(descActividad);
+                                    registro.setUsuario(usuario);
+
+                                    int resultado = dOIGE.insertar(registro);
+                                    if (resultado > 0) {
+                                        insertados++;
+                                    } else {
+                                        errores++;
+                                        detalle.append("Fila ").append(row.getRowNum() + 1).append(": no se pudo insertar. ");
+                                    }
+                                } catch (Exception ex) {
+                                    errores++;
+                                    detalle.append("Fila ").append(row.getRowNum() + 1).append(": ").append(ex.getMessage()).append(". ");
                                 }
-                                workbook.close();
-                                request.setAttribute("mensajeExito", "Archivo procesado correctamente");
                             }
-                        } catch (Exception e) {
-                            request.setAttribute("error", "Error al leer Excel: " + e.getMessage());
+                            workbook.close();
+                            out.print("{\"insertados\":" + insertados + ",\"errores\":" + errores + ",\"detalle\":\"" + detalle.toString().replace("\"", "'") + "\"}");
+                        } else {
+                            out.print("{\"insertados\":0,\"errores\":1,\"detalle\":\"Archivo vacio o no seleccionado\"}");
                         }
-                        // Redirigir a la vista para mostrar éxito o error
-                        request.getRequestDispatcher("frmOrden.jsp").forward(request, response);
-                        return; 
+                    } catch (Exception e) {
+                        out.print("{\"insertados\":0,\"errores\":1,\"detalle\":\"" + e.getMessage().replace("\"", "'") + "\"}");
+                        System.out.println("controlador.CtrlOrden.cargarExcel(): " + e.getMessage());
                     }
-
-                    // 2. Si no es Excel, ejecutar tu lógica original (doPost actual)
-                    // try (PrintWriter out = response.getWriter()) {
-                      //   DaoOWOR dO = new DaoOWOR();
-                        // ... (Copia aquí todo el resto de tu lógica original de doPost)
-                        // ...
-                        if (request.getParameter("mostrar")!=null) {
-                            // ... etc
-                        }
-                    
-                
-
-                // ... (Mantener el resto del archivo igual)
-
-                
-                // FIN METODO CARGAR ARCHIVO DE EXCEL CON ORDENES
+                }
                
                 //METODO ENVIAR LOS DATOS DE LOS EMPLEADOS AL SELECTOR EN EL REGISTRO DE HORAS
                 if (request.getParameter("mostrarEmpleados")!=null) {

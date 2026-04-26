@@ -257,10 +257,7 @@
     </button>
 </div>
 
-<form id="formExcel" action="CtrlOrden" method="POST" enctype="multipart/form-data" style="display:none;">
-    <input type="file" id="fileExcel" name="fileExcel" accept=".xlsx, .xls" onchange="enviarExcel()">
-    <input type="hidden" name="cargarExcelBoton" value="true">
-</form>
+<input type="file" id="fileExcel" name="fileExcel" accept=".xlsx, .xls" style="display:none;" onchange="enviarExcel()">
 
 <script>
 function abrirSelectorExcel() {
@@ -278,15 +275,38 @@ function enviarExcel() {
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.value) {
-                document.getElementById('formExcel').submit();
-            } else {
-                document.getElementById('fileExcel').value = ""; // Limpiar
+                var formData = new FormData();
+                formData.append('fileExcel', document.getElementById('fileExcel').files[0]);
+                formData.append('cargarExcelBoton', 'true');
+                Swal.fire({title: 'Procesando...', text: 'Cargando archivo Excel', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); }});
+                $.ajax({
+                    url: 'CtrlOrden',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(resp) {
+                        try {
+                            var data = JSON.parse(resp);
+                            if (data.errores === 0) {
+                                Swal.fire('Carga exitosa', 'Se insertaron ' + data.insertados + ' registros correctamente.', 'success');
+                            } else {
+                                Swal.fire('Carga con observaciones', 'Insertados: ' + data.insertados + ' | Errores: ' + data.errores + '\n' + data.detalle, data.insertados > 0 ? 'warning' : 'error');
+                            }
+                        } catch(e) {
+                            Swal.fire('Error', 'Respuesta inesperada del servidor', 'error');
+                        }
+                    },
+                    error: function() {
+                        Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
+                    }
+                });
             }
+            document.getElementById('fileExcel').value = "";
         });
     }
 }
 </script>
-                              </script>
                                 <!--TABLA DE DATOS DE ORDENES -->
                                 <table id="tablaOrdenes" class="display hover table-responsive table-condensed" style="width:100%">
                                     <thead>
