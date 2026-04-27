@@ -407,11 +407,20 @@ public class CtrlOrden extends HttpServlet {
                             for (Row row : sheet) {
                                 if (row.getRowNum() == 0) continue;
                                 try {
+                                    java.util.Date fecha = row.getCell(0).getDateCellValue();
+                                    java.util.Date horaInicio = row.getCell(1).getDateCellValue();
+                                    java.util.Date horaFin = row.getCell(2).getDateCellValue();
                                     int docNum = (int) row.getCell(5).getNumericCellValue();
                                     int codeEmp = (int) row.getCell(3).getNumericCellValue();
                                     String nomEmp = row.getCell(4).getStringCellValue();
                                     String actividad = row.getCell(7).getStringCellValue();
                                     String descActividad = row.getCell(6).getStringCellValue();
+
+                                    java.text.SimpleDateFormat sdfFecha = new java.text.SimpleDateFormat("yyyy-MM-dd");
+                                    java.text.SimpleDateFormat sdfHora = new java.text.SimpleDateFormat("HH:mm:ss");
+                                    String fechaStr = sdfFecha.format(fecha);
+                                    String inicio = fechaStr + " " + sdfHora.format(horaInicio);
+                                    String fin = fechaStr + " " + sdfHora.format(horaFin);
 
                                     OWOR owor = new OWOR();
                                     owor.setDocnum(docNum);
@@ -426,8 +435,10 @@ public class CtrlOrden extends HttpServlet {
                                     registro.setActividad(actividad);
                                     registro.setDescActividad(descActividad);
                                     registro.setUsuario(usuario);
+                                    registro.setInicio(inicio);
+                                    registro.setFin(fin);
 
-                                    int resultado = dOIGE.insertar(registro);
+                                    int resultado = dOIGE.insertarDesdeExcel(registro);
                                     if (resultado > 0) {
                                         insertados++;
                                     } else {

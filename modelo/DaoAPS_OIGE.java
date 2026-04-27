@@ -51,6 +51,29 @@ public class DaoAPS_OIGE extends ConexionSDO implements CRUD{
         return res;
     }
     
+    public int insertarDesdeExcel(Object Ob) throws ClassNotFoundException, SQLException {
+        try{
+            APS_OIGE=(APS_OIGE)Ob;
+            ps=con().prepareStatement("INSERT INTO APS_OIGE(idAPS_OWOR, codeEmp, nomEmp, actividad, descActividad, idUsuario, inicio, fin, estado) "+
+                                      "VALUES((SELECT idAPS_OWOR FROM APS_OWOR WHERE docNum=?),?,?,?,?,?, CAST(? AS DATETIME), CAST(? AS DATETIME), 1)");
+            ps.setInt(1,APS_OIGE.getAPS_OWOR().getDocnum());
+            ps.setInt(2,APS_OIGE.getCodeEmp());
+            ps.setString(3,APS_OIGE.getNomEmp());
+            ps.setString(4,APS_OIGE.getActividad());
+            ps.setString(5,APS_OIGE.getDescActividad().equals("Sin descripcion")?null:APS_OIGE.getDescActividad());
+            ps.setInt(6,APS_OIGE.getUsuario().getIdUsuario());
+            ps.setString(7,APS_OIGE.getInicio());
+            ps.setString(8,APS_OIGE.getFin());
+            res=ps.executeUpdate();
+        }catch(Exception ex) {
+            System.out.println("modelo.DaoAPS_OIGE.insertarDesdeExcel(): " + ex.getMessage());
+        }finally{
+            super.con().close();
+            ps.close();
+        }
+        return res;
+    }
+
     public int insertarGrupo(Object Ob) throws ClassNotFoundException, SQLException {
         try{
             APS_OIGE=(APS_OIGE)Ob;
